@@ -47,15 +47,22 @@ jobs:
           VERSION_CODE: ${{ github.run_number }}
         run: |
           chmod +x gradlew
+          report() {
+            # Surface the useful lines of a failed build as annotations (visible without the raw log).
+            grep -E "error:|FAILED|What went wrong|Execution failed|Caused by|AAPT|Unresolved|cannot find symbol|Keystore|keystore" build.log | head -12 | cut -c1-300 | while IFS= read -r line; do echo "::error::${line}"; done
+          }
           if [ -n "$KEYSTORE_B64" ]; then
-            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.keystore"
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.keystore" || { echo "::error::Keystore secret is not valid base64 (check KEYSTORE_B64_1 and _2 were pasted whole)"; exit 1; }
+            if ! keytool -list -keystore "$RUNNER_TEMP/release.keystore" -storepass "$KEYSTORE_PASSWORD" -alias "$KEY_ALIAS" > keytool.log 2>&1; then
+              echo "::error::Signing key check failed: $(head -c 200 keytool.log | tr '\n' ' ')"; exit 1
+            fi
             export KEYSTORE_PATH="$RUNNER_TEMP/release.keystore"
-            ./gradlew assembleRelease --no-daemon
+            ./gradlew assembleRelease --no-daemon > build.log 2>&1 || { report; exit 1; }
             cp app/build/outputs/apk/release/app-release.apk ../hydrate-plus.apk
             echo "signed=true" >> "$GITHUB_OUTPUT"
           else
             echo "::warning::Signing secrets are missing, so this build is a temporary test build and is not published as a release."
-            ./gradlew assembleDebug --no-daemon
+            ./gradlew assembleDebug --no-daemon > build.log 2>&1 || { report; exit 1; }
             cp app/build/outputs/apk/debug/app-debug.apk ../hydrate-plus.apk
             echo "signed=false" >> "$GITHUB_OUTPUT"
           fi
