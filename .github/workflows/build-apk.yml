@@ -59,13 +59,17 @@ jobs:
         id: build
         working-directory: android
         env:
-          KEYSTORE_B64: ${{ secrets.KEYSTORE_B64 }}${{ secrets.KEYSTORE_B64_1 }}${{ secrets.KEYSTORE_B64_2 }}
+          KS_SINGLE: ${{ secrets.KEYSTORE_B64 }}
+          KS_1: ${{ secrets.KEYSTORE_B64_1 }}
+          KS_2: ${{ secrets.KEYSTORE_B64_2 }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
           VERSION_CODE: ${{ github.run_number }}
         run: |
           chmod +x gradlew
+          # Two-part key wins over a single secret, so a stale or truncated KEYSTORE_B64 is ignored.
+          if [ -n "$KS_1$KS_2" ]; then KEYSTORE_B64="$KS_1$KS_2"; else KEYSTORE_B64="$KS_SINGLE"; fi
           report() {
             # Surface the useful lines of a failed build as annotations (visible without the raw log).
             grep -E "error:|FAILED|What went wrong|Execution failed|Caused by|AAPT|Unresolved|cannot find symbol|Keystore|keystore" build.log | head -12 | cut -c1-300 | while IFS= read -r line; do echo "::error::${line}"; done
