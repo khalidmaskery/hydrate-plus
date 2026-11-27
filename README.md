@@ -22,6 +22,12 @@ Water added from a widget is queued on the phone and merged into the app log the
 
 Code: `HydrateStore` (shared prefs), `WidgetRenderer` (draws the wave bitmap), `BaseWidget`/`HydrateWidgetWide`/`HydrateWidgetSmall`, and `HydrateBridgePlugin` (the link to the web app).
 
+## Web version (iPhone and any browser)
+`www/` is also an installable web app (manifest, service worker, icons). It is published with GitHub Pages at `https://khalidmaskery.github.io/hydrate-plus/` by the **Publish web app** workflow.
+- iPhone: open the link in Safari, Share, Add to Home Screen. Log from the home-screen icon, because Safari and the home-screen app keep separate data.
+- Works offline once opened. No automatic reminders, widgets or Fit3 alerts on the web version (iOS web apps cannot schedule notifications); the Reminders tab shows a drink schedule to copy into the Clock app.
+- One-time setup: the repo must be public (GitHub Free only serves Pages from public repos), then Settings, Pages, Source: **GitHub Actions**.
+
 ## Galaxy Fit3
 The Fit3 cannot run third-party apps. It mirrors phone notifications:
 1. Open Galaxy Wearable, select the Fit3.

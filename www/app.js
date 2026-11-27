@@ -99,6 +99,11 @@
   const fmtL = ml => String(Math.round(ml / 10) / 100);
   const nowMin = () => { const n = new Date(); return n.getHours() * 60 + n.getMinutes(); };
   const nativeLN = () => (window.Capacitor && window.Capacitor.Plugins && window.Capacitor.Plugins.LocalNotifications) || null;
+  const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  const isStandalone = () => { try { return window.navigator.standalone === true || window.matchMedia('(display-mode: standalone)').matches; } catch (e) { return false; } };
+  const HINT_KEY = 'hydrateplus.installhint';
+  function hintDismissed() { try { return localStorage.getItem(HINT_KEY) === '1'; } catch (e) { return false; } }
+  function dismissHint() { try { localStorage.setItem(HINT_KEY, '1'); } catch (e) { /* ignore */ } }
   const isNative = () => !!(window.Capacitor && typeof window.Capacitor.isNativePlatform === 'function' ? window.Capacitor.isNativePlatform() : nativeLN());
 
   /* -------------------------------------------------------------- day model */
@@ -213,6 +218,12 @@
   };
 
   /* ------------------------------------------------------------------ views */
+  function installBanner() {
+    if (isNative() || isStandalone() || hintDismissed()) return '';
+    return '<div class="tip"><span class="ic">📲</span><p><b>Install Hydrate+</b>' + (isIOS() ? 'Add it to your home screen to use it like an app and keep your data.' : 'Install it to open it like an app, even offline.') +
+      '<br><button class="btn sm" data-act="install-help">Show me how</button></p><button class="dismiss" data-act="install-dismiss" aria-label="Dismiss">×</button></div>';
+  }
+
   function vToday() {
     const k = today(), d = S.days[k], total = dayTotal(d), goal = dayGoal(k), pct = Math.min(1, total / goal);
     const p = pace(), t = tip(), st = streak();
@@ -229,6 +240,7 @@
       '<div class="drinks" role="radiogroup" aria-label="Drink type">' + Object.keys(TYPES).map(id =>
         '<button class="dchip' + (S.type === id ? ' on' : '') + '" role="radio" aria-checked="' + (S.type === id) + '" data-act="type" data-t="' + id + '">' + TYPES[id].i + ' ' + TYPES[id].n + '</button>').join('') + '</div>' +
       '<div class="actions"><button class="btn" data-act="custom">Custom amount</button><button class="btn ghost" data-act="undo"' + (log.length ? '' : ' disabled') + '>Undo last</button></div>' +
+      installBanner() +
       (t ? '<div class="tip ' + t.c + '"><span class="ic">' + t.i + '</span><p><b>' + t.t + '</b>' + t.p + '</p></div>' : '') +
       '<div class="card"><h3>Today\'s extras</h3>' +
       '<div class="set"><div><div class="t">Workout or exercise</div><div class="d">Adds ' + S.bonus + ' ml to today\'s goal</div></div><label class="switch"><input type="checkbox" data-bonus="w"' + (d && d.w ? ' checked' : '') + ' aria-label="Workout day"><i></i></label></div>' +
@@ -313,7 +325,24 @@
     return out;
   }
 
+  function vRemindWeb() {
+    const times = reminderTimes();
+    return '<div class="top"><div class="brand"><div><h1>Reminders</h1><small>Drink times to follow</small></div></div></div>' +
+      '<div class="card" style="margin-top:0"><h2>Reminders need the Android app</h2>' +
+      '<p class="muted">A web app on ' + (isIOS() ? 'iPhone' : 'this device') + ' cannot schedule its own notifications. Use your phone\'s own tools with the schedule below.</p>' +
+      '<div class="set"><div class="t">First drink</div><input type="time" data-set="rem-start" value="' + S.rem.start + '"></div>' +
+      '<div class="set"><div class="t">Last drink</div><input type="time" data-set="rem-end" value="' + S.rem.end + '"></div>' +
+      '<div class="set"><div class="t">Every</div><select data-set="rem-every" aria-label="Interval">' + [45, 60, 90, 120, 150, 180].map(n => '<option value="' + n + '"' + (S.rem.every === n ? ' selected' : '') + '>' + (n % 60 === 0 ? n / 60 + ' h' : n + ' min') + '</option>').join('') + '</select></div>' +
+      (times.length ? '<div class="times">' + times.map(t => '<span>' + fmtMin(t) + '</span>').join('') + '</div>' : '<p class="muted" style="margin-top:10px">Set the last drink later than the first.</p>') + '</div>' +
+      '<div class="card"><h2>Set reminders on your phone</h2><ol class="steps">' +
+      '<li><span>Open the <b>Clock</b> app and add alarms at the times above.</span></li>' +
+      '<li><span>Label each one <b>Drink water</b> and set it to repeat every day.</span></li>' +
+      '<li><span>Or use <b>Shortcuts → Automation → Time of Day</b> to show a notification at each time.</span></li></ol>' +
+      '<p class="muted" style="margin-top:8px">Automatic reminders, home-screen widgets and Galaxy Fit3 alerts are available in the Android app.</p></div>';
+  }
+
   function vRemind() {
+    if (!isNative()) return vRemindWeb();
     const times = reminderTimes();
     const native = isNative();
     const permBadge = !native ? '<span class="badge off">App only</span>' : ui.perm === 'granted' ? '<span class="badge">Allowed</span>' : ui.perm === 'denied' ? '<span class="badge off">Blocked</span>' : '<span class="badge off">Not allowed yet</span>';
@@ -342,6 +371,30 @@
     return list.map(n => '<option value="' + n + '"' + (S.widgetMl === n ? ' selected' : '') + '>+' + n + ' ml</option>').join('');
   }
 
+  function widgetCard() {
+    if (!isNative()) {
+      if (isStandalone()) return '';
+      return '<div class="card"><h3>Install on your phone</h3><p class="muted">' + (isIOS() ? 'Open this page in Safari, tap Share, then Add to Home Screen. Start logging after you open it from the home screen, because data saved in Safari does not carry over.' : 'Use your browser menu and choose Install app or Add to Home screen.') + '</p>' +
+        '<div class="actions"><button class="btn" data-act="install-help">Show the steps</button></div></div>';
+    }
+    return '<div class="card"><h3>Home-screen widget</h3><p class="muted">Add water from your home screen with one tap. The wave shows today\'s progress and matches the app.</p>' +
+      '<div class="set"><div><div class="t">Widget button adds</div></div><select data-set="wml" aria-label="Widget amount">' + widgetOptions() + '</select></div>' +
+      '<div class="actions"><button class="btn" data-act="pin" data-kind="wide">Add 2×1 widget</button><button class="btn" data-act="pin" data-kind="small">Add 1×1 button</button></div>' +
+      '<p class="muted" style="margin-top:10px">Or touch and hold an empty spot on the home screen, tap Widgets, and choose Hydrate+.</p></div>';
+  }
+
+  function sheetInstall() {
+    const ios = isIOS();
+    openSheet('<h2>Install Hydrate+</h2>' +
+      (ios ? '<ol class="steps"><li><span>Open this page in <b>Safari</b>. Other iPhone browsers cannot add it.</span></li>' +
+        '<li><span>Tap the <b>Share</b> button (the square with an arrow).</span></li>' +
+        '<li><span>Scroll and tap <b>Add to Home Screen</b>, then <b>Add</b>.</span></li>' +
+        '<li><span>Open <b>Hydrate+</b> from your home screen and start logging there.</span></li></ol>' +
+        '<p class="muted">Data saved while browsing in Safari stays in Safari. Install first, then log.</p>'
+        : '<ol class="steps"><li><span>Open the browser menu (the three dots).</span></li><li><span>Tap <b>Install app</b> or <b>Add to Home screen</b>.</span></li><li><span>Open <b>Hydrate+</b> from your home screen.</span></li></ol>') +
+      '<div class="actions"><button class="btn primary" data-act="close">Got it</button></div>');
+  }
+
   function vSettings() {
     return '<div class="top"><div class="brand"><div><h1>Settings</h1><small>Goal, sizes and data</small></div></div></div>' +
       '<div class="card" style="margin-top:0"><h3>Daily goal</h3><div class="row"><div class="stepper"><button data-act="goal" data-d="-250" aria-label="Decrease goal">−</button><output>' + fmtL(S.goal) + ' L</output><button data-act="goal" data-d="250" aria-label="Increase goal">+</button></div></div>' +
@@ -349,10 +402,7 @@
       '<div class="sep"></div>' +
       '<div class="set"><div><div class="t">Workout or hot day bonus</div></div><select data-set="bonus" aria-label="Bonus">' + [0, 250, 500, 750, 1000].map(n => '<option value="' + n + '"' + (S.bonus === n ? ' selected' : '') + '>+' + n + ' ml</option>').join('') + '</select></div>' +
       '<div class="set"><div><div class="t">Electrolyte target</div><div class="d">ORS, soup and laban. 0 turns it off</div></div><input type="number" inputmode="numeric" min="0" max="4000" step="50" data-set="elec" value="' + S.elec + '" aria-label="Electrolyte target ml"></div></div>' +
-      '<div class="card"><h3>Home-screen widget</h3><p class="muted">Add water from your home screen with one tap. The wave shows today\'s progress and matches the app.</p>' +
-      '<div class="set"><div><div class="t">Widget button adds</div></div><select data-set="wml" aria-label="Widget amount">' + widgetOptions() + '</select></div>' +
-      '<div class="actions"><button class="btn" data-act="pin" data-kind="wide">Add 2×1 widget</button><button class="btn" data-act="pin" data-kind="small">Add 1×1 button</button></div>' +
-      '<p class="muted" style="margin-top:10px">Or touch and hold an empty spot on the home screen, tap Widgets, and choose Hydrate+.</p></div>' +
+      widgetCard() +
       '<div class="card"><h3>Quick-add sizes (ml)</h3><div class="row" style="gap:8px">' + S.presets.map((p, i) => '<input type="number" inputmode="numeric" min="25" max="2000" step="25" style="width:100%;text-align:center" data-set="preset" data-i="' + i + '" value="' + p + '" aria-label="Size ' + (i + 1) + '">').join('') + '</div></div>' +
       '<div class="card"><h3>Appearance</h3><div class="seg">' + ['auto', 'light', 'dark'].map(t => '<button class="' + (S.theme === t ? 'on' : '') + '" data-act="theme" data-t="' + t + '">' + t[0].toUpperCase() + t.slice(1) + '</button>').join('') + '</div></div>' +
       '<div class="card"><h3>Your data</h3><p class="muted">Everything is stored on this phone only. Export a backup before changing phones.</p>' +
@@ -627,6 +677,8 @@
         break;
       }
       case 'test': sendTest(); break;
+      case 'install-help': sheetInstall(); break;
+      case 'install-dismiss': dismissHint(); render(); break;
       case 'pin': {
         const bridge = HB();
         if (!bridge) { toast('Widgets work in the Android app'); break; }
@@ -700,6 +752,9 @@
   render();
   setupNative().then(() => { if (ui.tab === 'remind') render(); });
   widgetPull();
+  if (!isNative() && 'serviceWorker' in navigator && /^https?:$/.test(location.protocol)) {
+    window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => { /* ignore */ }); });
+  }
 
   // Small hook for automated tests.
   window.__hydrate = { get state() { return S; }, dayTotal, dayGoal, streak, pace, reminderTimes, syncReminders };
