@@ -36,6 +36,25 @@ jobs:
       - name: Sync web app into the Android project
         run: npx cap sync android
 
+      - name: Check signing secrets
+        env:
+          P1: ${{ secrets.KEYSTORE_B64_1 }}
+          P2: ${{ secrets.KEYSTORE_B64_2 }}
+          P0: ${{ secrets.KEYSTORE_B64 }}
+          KP: ${{ secrets.KEYSTORE_PASSWORD }}
+          KA: ${{ secrets.KEY_ALIAS }}
+          KK: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          chk() { # name value expected_len
+            v="$2"; l=${#v}
+            echo "::notice::$1: length=$l (expected $3), starts_MII=$([[ "$v" == MII* ]] && echo yes || echo no), has_space=$([[ "$v" == *[[:space:]]* ]] && echo yes || echo no), has_VALUE=$([[ "$v" == *VALUE* ]] && echo yes || echo no), valid_b64_chars=$([[ "$v" =~ ^[A-Za-z0-9+/=]*$ ]] && echo yes || echo no)"
+          }
+          chk KEYSTORE_B64_1 "$P1" 1770
+          chk KEYSTORE_B64_2 "$P2" 1770
+          echo "::notice::KEYSTORE_B64 (single) length=${#P0}"
+          echo "::notice::KEYSTORE_PASSWORD length=${#KP} (expected 24), KEY_PASSWORD length=${#KK} (expected 24), KEY_ALIAS='${KA}'"
+          echo "::notice::password_has_space=$([[ "$KP$KK" == *[[:space:]]* ]] && echo yes || echo no), passwords_equal=$([ "$KP" = "$KK" ] && echo yes || echo no)"
+
       - name: Build APK
         id: build
         working-directory: android
