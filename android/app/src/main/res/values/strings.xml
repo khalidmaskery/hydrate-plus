@@ -1,0 +1,13 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Hydrate+</string>
+    <string name="title_activity_main">Hydrate+</string>
+    <string name="package_name">com.hydrateplus.app</string>
+    <string name="custom_url_scheme">com.hydrateplus.app</string>
+    <string name="widget_wide_label">Hydrate+ progress</string>
+    <string name="widget_small_label">Hydrate+ button</string>
+    <string name="widget_wide_desc">Today\'s water progress with a one-tap add button.</string>
+    <string name="widget_small_desc">Tap to add water. The wave shows today\'s progress.</string>
+    <string name="widget_add_desc">Add water</string>
+    <string name="widget_open_app">Open Hydrate+</string>
+</resources>

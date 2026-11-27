@@ -1,0 +1,12 @@
+{
+  "appId": "com.hydrateplus.app",
+  "appName": "Hydrate+",
+  "webDir": "www",
+  "android": { "allowMixedContent": false },
+  "plugins": {
+    "LocalNotifications": {
+      "smallIcon": "ic_stat_icon",
+      "iconColor": "#1B6BFF"
+    }
+  }
+}
